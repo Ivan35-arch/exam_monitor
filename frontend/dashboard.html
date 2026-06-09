@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - ExamMonitor</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <h2>ExamMonitor Portal</h2>
+            <div>
+                <button class="btn" style="background:var(--success); margin-right:1rem;" onclick="downloadICal()">Export iCal</button>
+                <button class="btn btn-danger" onclick="clearAuth()">Logout</button>
+            </div>
+        </nav>
+
+        <div id="alertBox" class="alert"></div>
+
+        <h3 style="margin-bottom: 1rem;">My Upcoming Exams</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Unit Code</th>
+                        <th>Unit Name</th>
+                        <th>Duration</th>
+                        <th>Venue</th>
+                    </tr>
+                </thead>
+                <tbody id="examTableBody">
+                    <tr><td colspan="6" style="text-align:center;">Loading exams...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadExams);
+
+        async function loadExams() {
+            const tbody = document.getElementById('examTableBody');
+            try {
+                const exams = await request('/exams/my-exams');
+                if (exams.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No exams found. Ensure you are registered for your units!</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = exams.map(exam => `
+                    <tr>
+                        <td style="font-weight: 500; color: #60a5fa;">${new Date(exam.exam_date).toLocaleDateString()}</td>
+                        <td>${exam.exam_time.substring(0,5)}</td>
+                        <td><span style="background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(59,130,246,0.2);">${exam.unit_code}</span></td>
+                        <td>${exam.unit_name}</td>
+                        <td>${exam.duration_minutes} min</td>
+                        <td>${exam.venue}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--danger);">Failed to load exams</td></tr>';
+            }
+        }
+
+        async function downloadICal() {
+            try {
+                const blob = await request('/exams/my-exams/ical', { isBlob: true });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'exams.ics';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Failed to download calendar');
+            }
+        }
+    </script>
+</body>
+</html>

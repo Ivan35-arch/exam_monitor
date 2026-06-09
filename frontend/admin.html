@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - ExamMonitor</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <h2>Faculty Admin Portal</h2>
+            <button class="btn btn-danger" style="width:auto;" onclick="clearAuth()">Logout</button>
+        </nav>
+
+        <div class="auth-card" style="max-width:600px; margin: 0 auto;">
+            <h3 style="margin-bottom: 1.5rem;">Upload Official Timetable</h3>
+            <div id="alertBox" class="alert"></div>
+            
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="title" class="form-control" placeholder="e.g. November 2025 End of Semester" required>
+                </div>
+                <div class="form-group" style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label>Semester</label>
+                        <input type="text" id="semester" class="form-control" placeholder="e.g. Aug-Dec" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label>Academic Year</label>
+                        <input type="text" id="academic_year" class="form-control" placeholder="e.g. 2025" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>PDF File</label>
+                    <input type="file" id="timetableFile" class="form-control" accept="application/pdf" required style="padding: 0.5rem 1rem;">
+                </div>
+                <button type="submit" class="btn" id="uploadBtn">Upload & Parse</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertBox = document.getElementById('alertBox');
+            const btn = document.getElementById('uploadBtn');
+            alertBox.className = 'alert';
+            btn.textContent = 'Parsing... Please wait';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('title').value);
+            formData.append('semester', document.getElementById('semester').value);
+            formData.append('academic_year', document.getElementById('academic_year').value);
+            formData.append('timetable', document.getElementById('timetableFile').files[0]);
+
+            try {
+                const res = await request('/timetables/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                alertBox.textContent = `Success! Parsed ${res.total_parsed} rows. Inserted ${res.total_inserted} exams.`;
+                alertBox.classList.add('success');
+                e.target.reset();
+            } catch (err) {
+                alertBox.textContent = err.error || 'Upload failed';
+                alertBox.classList.add('error');
+            } finally {
+                btn.textContent = 'Upload & Parse';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
