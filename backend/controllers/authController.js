@@ -7,8 +7,9 @@ const generateToken = (payload) => {
 };
 
 const register = async (req, res) => {
-    const client = await db.getClient();
+    let client;
     try {
+        client = await db.getClient();
         const { email, password, role_name, student_no, first_name, last_name } = req.body;
 
         // Basic validation
@@ -70,11 +71,11 @@ const register = async (req, res) => {
         });
 
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (client) await client.query('ROLLBACK');
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Server error during registration' });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 };
 

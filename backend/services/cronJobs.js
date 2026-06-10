@@ -7,12 +7,13 @@ const startCronJobs = () => {
         console.log('Running daily 08:00 exam reminder job...');
         try {
             const query = `
-                SELECT sr.student_id, e.exam_id, e.unit_code, e.unit_name, e.exam_date, e.exam_time, e.venue
+                SELECT sr.student_id, e.exam_id, e.unit_code, e.unit_name, e.exam_date, e.exam_time, e.venue,
+                       (e.exam_date - CURRENT_DATE) as days_away
                 FROM exam_entries e
                 JOIN student_registrations sr ON sr.course_id = e.course_id AND sr.group_id = e.group_id
                 JOIN official_timetables ot ON ot.timetable_id = e.timetable_id
                 WHERE ot.status = 'published'
-                  AND e.exam_date = CURRENT_DATE + INTERVAL '1 day'
+                  AND (e.exam_date = CURRENT_DATE + INTERVAL '1 day' OR e.exam_date = CURRENT_DATE + INTERVAL '3 days')
             `;
             
             const result = await db.query(query);
@@ -23,7 +24,8 @@ const startCronJobs = () => {
                 try {
                     await client.query('BEGIN');
                     for (let exam of result.rows) {
-                        const message = `Reminder: Your exam for ${exam.unit_code} (${exam.unit_name}) is tomorrow at ${exam.exam_time} in ${exam.venue}.`;
+                        const timeText = exam.days_away === 1 ? 'tomorrow' : 'in 3 days';
+                        const message = `Reminder: Your exam for ${exam.unit_code} (${exam.unit_name}) is ${timeText} at ${exam.exam_time} in ${exam.venue}.`;
                         await client.query(
                             'INSERT INTO notifications (student_id, exam_id, message) VALUES ($1, $2, $3)',
                             [exam.student_id, exam.exam_id, message]

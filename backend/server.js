@@ -7,6 +7,7 @@ const timetableRoutes = require('./routes/timetableRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const examRoutes = require('./routes/examRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const metaRoutes = require('./routes/metaRoutes');
 const { startCronJobs } = require('./services/cronJobs');
 
 const app = express();
@@ -23,10 +24,15 @@ app.use('/api/timetables', timetableRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/meta', metaRoutes);
 
 // Serve Frontend Statically
 const path = require('path');
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
+});
 
 // Start Cron Jobs
 startCronJobs();

@@ -4,7 +4,7 @@ const ics = require('ics');
 // POST /api/timetables/generate
 const generateTimetable = async (req, res) => {
     const student_id = req.user.specificId;
-    if (!student_id || req.user.roleName !== 'student') {
+    if (!student_id || req.user.role_name !== 'student') {
         return res.status(403).json({ error: 'Only students can generate timetables' });
     }
 

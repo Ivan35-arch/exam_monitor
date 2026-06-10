@@ -18,6 +18,18 @@
 
         <div id="alertBox" class="alert"></div>
 
+        <div class="auth-card" style="margin-bottom: 2rem; max-width: 100%; box-shadow: none; border: 1px solid var(--border-color);">
+            <h3 style="margin-bottom: 1rem;">Course Registration</h3>
+            <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                Select your primary group to generate your personalized timetable. You can add more groups if you are taking cross-programme units.
+            </p>
+            <div id="registrationsContainer">
+                <!-- Dynamic group selectors will go here -->
+            </div>
+            <button class="btn" style="background:var(--secondary-color); margin-top: 1rem;" onclick="addGroupSelector()">+ Add Another Group</button>
+            <button class="btn" style="margin-top: 1rem;" onclick="saveRegistrations()">Save Registrations</button>
+        </div>
+
         <h3 style="margin-bottom: 1rem;">My Upcoming Exams</h3>
         <div class="table-container">
             <table>
@@ -40,7 +52,141 @@
 
     <script src="js/api.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', loadExams);
+        let allCourses = [];
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCourses();
+            await loadProfile();
+            loadExams();
+        });
+
+        async function loadCourses() {
+            try {
+                allCourses = await request('/meta/courses');
+            } catch (err) {
+                console.error('Failed to load courses', err);
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const profile = await request('/students/me');
+                const container = document.getElementById('registrationsContainer');
+                container.innerHTML = ''; // Clear
+                
+                if (profile.registrations && profile.registrations.length > 0) {
+                    for (let reg of profile.registrations) {
+                        await addGroupSelector(reg.course_id, reg.group_id);
+                    }
+                } else {
+                    await addGroupSelector(); // Add one empty by default
+                }
+            } catch (err) {
+                console.error('Failed to load profile', err);
+            }
+        }
+
+        async function addGroupSelector(selectedCourseId = '', selectedGroupId = '') {
+            const container = document.getElementById('registrationsContainer');
+            const row = document.createElement('div');
+            row.className = 'form-group reg-row';
+            row.style.display = 'flex';
+            row.style.gap = '1rem';
+            row.style.alignItems = 'flex-end';
+
+            const courseSelect = document.createElement('select');
+            courseSelect.className = 'form-control course-select';
+            courseSelect.innerHTML = `<option value="">-- Select Course --</option>` + 
+                allCourses.map(c => `<option value="${c.course_id}" ${c.course_id == selectedCourseId ? 'selected' : ''}>${c.course_name} (${c.course_code})</option>`).join('');
+
+            const groupSelect = document.createElement('select');
+            groupSelect.className = 'form-control group-select';
+            groupSelect.innerHTML = `<option value="">-- Select Group --</option>`;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn btn-danger';
+            removeBtn.style.flex = '0 0 auto';
+            removeBtn.style.width = 'auto';
+            removeBtn.textContent = 'Remove';
+            removeBtn.onclick = () => row.remove();
+
+            // Load groups if course is already selected
+            if (selectedCourseId) {
+                await populateGroups(selectedCourseId, groupSelect, selectedGroupId);
+            }
+
+            courseSelect.onchange = async (e) => {
+                await populateGroups(e.target.value, groupSelect);
+            };
+
+            const div1 = document.createElement('div'); div1.style.flex = '1';
+            div1.innerHTML = '<label>Course</label>'; div1.appendChild(courseSelect);
+            
+            const div2 = document.createElement('div'); div2.style.flex = '1';
+            div2.innerHTML = '<label>Group</label>'; div2.appendChild(groupSelect);
+
+            row.appendChild(div1);
+            row.appendChild(div2);
+            row.appendChild(removeBtn);
+            
+            container.appendChild(row);
+        }
+
+        async function populateGroups(courseId, groupSelect, selectedGroupId = '') {
+            groupSelect.innerHTML = `<option value="">Loading...</option>`;
+            if (!courseId) {
+                groupSelect.innerHTML = `<option value="">-- Select Group --</option>`;
+                return;
+            }
+            try {
+                const groups = await request(`/meta/courses/${courseId}/groups`);
+                groupSelect.innerHTML = `<option value="">-- Select Group --</option>` + 
+                    groups.map(g => `<option value="${g.group_id}" ${g.group_id == selectedGroupId ? 'selected' : ''}>${g.group_name}</option>`).join('');
+            } catch (err) {
+                groupSelect.innerHTML = `<option value="">Error loading groups</option>`;
+            }
+        }
+
+        async function saveRegistrations() {
+            const rows = document.querySelectorAll('.reg-row');
+            const registrations = [];
+            
+            rows.forEach(row => {
+                const courseId = row.querySelector('.course-select').value;
+                const groupId = row.querySelector('.group-select').value;
+                if (courseId && groupId) {
+                    registrations.push({
+                        course_id: parseInt(courseId),
+                        group_id: parseInt(groupId),
+                        academic_year: 'Aug-Nov 2025' // Defaulting for now
+                    });
+                }
+            });
+
+            const alertBox = document.getElementById('alertBox');
+            if (registrations.length === 0) {
+                alertBox.className = 'alert error';
+                alertBox.textContent = 'Please select at least one course and group.';
+                return;
+            }
+
+            try {
+                await request('/students/registrations', {
+                    method: 'PUT',
+                    body: JSON.stringify({ registrations })
+                });
+                alertBox.className = 'alert success';
+                alertBox.textContent = 'Registrations saved successfully! Generating your timetable...';
+                
+                // Trigger backend to map personal timetables
+                await request('/exams/generate', { method: 'POST' });
+                
+                loadExams();
+            } catch (err) {
+                alertBox.className = 'alert error';
+                alertBox.textContent = err.error || 'Failed to save registrations';
+            }
+        }
 
         async function loadExams() {
             const tbody = document.getElementById('examTableBody');

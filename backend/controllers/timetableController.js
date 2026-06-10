@@ -96,4 +96,52 @@ const uploadTimetable = async (req, res) => {
     }
 };
 
-module.exports = { uploadTimetable };
+const getTimetables = async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT timetable_id, title, semester, academic_year, status, uploaded_at, published_at
+            FROM official_timetables
+            ORDER BY uploaded_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get Timetables Error:', error);
+        res.status(500).json({ error: 'Failed to fetch timetables' });
+    }
+};
+
+const publishTimetable = async (req, res) => {
+    const admin_id = req.user.specificId;
+    if (!admin_id || req.user.role_name !== 'faculty_admin' && req.user.role_name !== 'super_admin') {
+        return res.status(403).json({ error: 'Only admins can publish timetables' });
+    }
+
+    const { id } = req.params;
+
+    try {
+        const result = await db.query(
+            `UPDATE official_timetables 
+             SET status = 'published', published_at = NOW(), updated_at = NOW() 
+             WHERE timetable_id = $1 AND status = 'draft'
+             RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Timetable not found or already published' });
+        }
+
+        // Log Activity
+        await db.query(
+            `INSERT INTO activity_logs (user_id, action, description) VALUES ($1, $2, $3)`,
+            [req.user.user_id, 'TIMETABLE_PUBLISHED', `Published timetable: ${result.rows[0].title}`]
+        );
+
+        res.json({ message: 'Timetable published successfully', timetable: result.rows[0] });
+    } catch (error) {
+        console.error('Publish Timetable Error:', error);
+        res.status(500).json({ error: 'Failed to publish timetable' });
+    }
+};
+
+module.exports = { uploadTimetable, getTimetables, publishTimetable };

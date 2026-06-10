@@ -14,7 +14,7 @@ const protect = (roles = []) => {
             // Expected payload from login: { userId, roleId, roleName, specificId (student_id or admin_id) }
             req.user = decoded;
 
-            if (roles.length && !roles.includes(req.user.roleName)) {
+            if (roles.length && !roles.includes(req.user.role_name)) {
                 return res.status(403).json({ error: 'Forbidden, insufficient permissions' });
             }
 

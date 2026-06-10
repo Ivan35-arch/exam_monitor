@@ -39,10 +39,67 @@
                 <button type="submit" class="btn" id="uploadBtn">Upload & Parse</button>
             </form>
         </div>
+        <div class="auth-card" style="max-width:800px; margin: 2rem auto;">
+            <h3 style="margin-bottom: 1.5rem;">Existing Timetables</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Semester</th>
+                            <th>Year</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timetablesBody">
+                        <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script src="js/api.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', loadTimetables);
+
+        async function loadTimetables() {
+            const tbody = document.getElementById('timetablesBody');
+            try {
+                const timetables = await request('/timetables');
+                if (timetables.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No timetables found</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = timetables.map(t => `
+                    <tr>
+                        <td>${t.title}</td>
+                        <td>${t.semester}</td>
+                        <td>${t.academic_year}</td>
+                        <td><span class="badge ${t.status === 'published' ? 'bg-success' : 'bg-warning'}">${t.status}</span></td>
+                        <td>
+                            ${t.status === 'draft' ? `<button class="btn" style="padding:4px 8px; font-size:0.8rem;" onclick="publishTimetable(${t.timetable_id})">Publish</button>` : 'Published'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load timetables</td></tr>';
+            }
+        }
+
+        async function publishTimetable(id) {
+            if (!confirm('Are you sure you want to publish this timetable? Students will be able to see it immediately.')) return;
+            try {
+                await request(`/timetables/${id}/publish`, { method: 'PUT' });
+                alert('Timetable published successfully!');
+                loadTimetables();
+            } catch (err) {
+                alert(err.error || 'Failed to publish');
+            }
+        }
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const alertBox = document.getElementById('alertBox');
@@ -65,6 +122,7 @@
                 alertBox.textContent = `Success! Parsed ${res.total_parsed} rows. Inserted ${res.total_inserted} exams.`;
                 alertBox.classList.add('success');
                 e.target.reset();
+                loadTimetables();
             } catch (err) {
                 alertBox.textContent = err.error || 'Upload failed';
                 alertBox.classList.add('error');
