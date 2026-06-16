@@ -3,7 +3,7 @@ const db = require('../db');
 // GET /api/notifications
 const getNotifications = async (req, res) => {
     const student_id = req.user.specificId;
-    if (!student_id || req.user.roleName !== 'student') {
+    if (!student_id || req.user.role_name !== 'student') {
         return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -22,7 +22,7 @@ const getNotifications = async (req, res) => {
 // GET /api/notifications/unread-count
 const getUnreadCount = async (req, res) => {
     const student_id = req.user.specificId;
-    if (!student_id || req.user.roleName !== 'student') return res.status(403).json({ error: 'Forbidden' });
+    if (!student_id || req.user.role_name !== 'student') return res.status(403).json({ error: 'Forbidden' });
 
     try {
         const result = await db.query(

@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3000/api';
+const BASE = '/api';
 const getToken = () => localStorage.getItem('token');
 const setToken = (token) => localStorage.setItem('token', token);
 const clearAuth = () => {

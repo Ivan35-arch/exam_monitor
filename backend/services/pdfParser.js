@@ -105,16 +105,20 @@ async function parseTimetable(pdfBuffer) {
                     currentUnitName = unitAndGroup.substring(0, groupMatch.index).trim();
                     let groupName = unitAndGroup.substring(groupMatch.index + 1).trim();
                     
-                    // Add exam
-                    exams.push({
-                        unit_code: currentUnitCode,
-                        unit_name: currentUnitName,
-                        group_name: groupName,
-                        exam_date: currentDate.toISOString().split('T')[0],
-                        exam_time: currentStartTime + ':00',
-                        duration_minutes: calculateDuration(currentStartTime, currentEndTime),
-                        venue: venueStr.trim()
-                    });
+                    if (currentDate) {
+                        // Add exam
+                        exams.push({
+                            unit_code: currentUnitCode,
+                            unit_name: currentUnitName,
+                            group_name: groupName,
+                            exam_date: currentDate.toISOString().split('T')[0],
+                            exam_time: currentStartTime + ':00',
+                            duration_minutes: calculateDuration(currentStartTime, currentEndTime),
+                            venue: venueStr.trim()
+                        });
+                    } else {
+                        console.warn('Skipping exam entry due to missing date context:', currentUnitCode, groupName);
+                    }
                 }
             } else {
                 // If we couldn't find a venue, it might be a weirdly wrapped line. Just store unit name for now.

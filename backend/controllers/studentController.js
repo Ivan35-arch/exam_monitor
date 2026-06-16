@@ -4,7 +4,7 @@ const db = require('../db');
 // Expected body: { registrations: [{ course_id, group_id, academic_year }] }
 const updateRegistrations = async (req, res) => {
     const student_id = req.user.specificId;
-    if (!student_id || req.user.roleName !== 'student') {
+    if (!student_id || req.user.role_name !== 'student') {
         return res.status(403).json({ error: 'Only students can update registrations' });
     }
 
