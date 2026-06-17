@@ -3,6 +3,7 @@ import json
 import re
 import os
 import pdfplumber
+from datetime import datetime
 
 def clean_time(raw_time):
     """Fixes typos in the PDF like '08:30-1030:' or '08.30-10.30'"""
@@ -10,6 +11,16 @@ def clean_time(raw_time):
     if len(digits) >= 8:
         return f"{digits[0]}{digits[1]}:{digits[2]}{digits[3]}-{digits[4]}{digits[5]}:{digits[6]}{digits[7]}"
     return raw_time.replace('\n', '').replace('.', ':').strip()
+
+def format_date(raw_date):
+    """Parses 'Monday, 1st December 2025.' into '2025-12-01'"""
+    clean = raw_date.replace('.', '').strip()
+    clean = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', clean)
+    try:
+        dt = datetime.strptime(clean, "%A, %d %B %Y")
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return raw_date
 
 def parse_2025_timetable(pdf_path):
     exams = []
@@ -70,7 +81,8 @@ def parse_2025_timetable(pdf_path):
                         
                     # Column 0: Date
                     if clean_row[0] and date_regex.search(clean_row[0]):
-                        current_date = clean_row[0].replace('\n', ' ').strip()
+                        raw_date = clean_row[0].replace('\n', ' ').strip()
+                        current_date = format_date(raw_date)
                         
                     # Column 1: Time
                     if clean_row[1]:
