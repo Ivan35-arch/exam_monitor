@@ -7,3 +7,5 @@ coverage/
 dist/
 build/
 .vscode/
+uploads/
+__pycache__/

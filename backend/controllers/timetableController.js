@@ -28,8 +28,8 @@ const uploadTimetable = async (req, res) => {
         );
         const timetable_id = otRes.rows[0].timetable_id;
 
-        // 2. Parse PDF
-        const parsedExams = await parseTimetable(req.file.buffer);
+        // 2. Parse PDF using the python script
+        const parsedExams = await parseTimetable(req.file.path);
 
         // Fetch all groups for quick mapping (group_name -> {group_id, course_id})
         const groupsRes = await client.query('SELECT group_id, course_id, group_name FROM groups');
@@ -90,6 +90,7 @@ const uploadTimetable = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Upload Error:', error);
+        require('fs').writeFileSync('error.log', error.stack || error.toString());
         res.status(500).json({ error: 'Failed to process timetable' });
     } finally {
         client.release();

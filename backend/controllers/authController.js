@@ -73,6 +73,9 @@ const register = async (req, res) => {
     } catch (error) {
         if (client) await client.query('ROLLBACK');
         console.error('Registration error:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({ error: 'Account with these details (email or student number) already exists' });
+        }
         res.status(500).json({ error: 'Server error during registration' });
     } finally {
         if (client) client.release();
