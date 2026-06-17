@@ -1,48 +1,67 @@
 # Deployment Guide for ExamMonitor
 
-This guide covers how to deploy the ExamMonitor full-stack application to a production environment. Since the frontend is served statically by the Node.js backend, you only need to deploy a single web service and a PostgreSQL database.
+This guide covers how to deploy the ExamMonitor full-stack application to a production environment or move it to a new machine. Since the frontend is served statically by the Node.js backend, you only need to deploy a single web service, a Python environment, and a PostgreSQL database.
 
-## 1. Database Setup (PostgreSQL)
+## 1. Prerequisites
 
-You will need a hosted PostgreSQL database. Good options include **Render**, **Supabase**, **Neon**, or **ElephantSQL**.
+Before moving the system to a new machine, ensure the following are installed:
+- **Node.js** (v16 or higher recommended)
+- **Python** (v3.8 or higher)
+- **PostgreSQL** (v12 or higher)
+- **Git** (optional, for cloning the repository)
 
-1. Create a new PostgreSQL database on your chosen provider.
+## 2. Database Setup (PostgreSQL)
+
+You will need a PostgreSQL database. You can host this locally on the new machine or use a managed service (Render, Supabase, Neon).
+
+1. Create a new PostgreSQL database.
 2. Connect to the database using a tool like `psql` or pgAdmin.
 3. Run the SQL scripts provided in the project root to set up the schema and insert initial data:
    - First, execute `init.sql` to create all the necessary tables.
    - Then, execute `fixedseed.sql` to populate the roles, mock data, and initial state.
-4. Copy the connection string (usually starts with `postgresql://` or `postgres://`).
+4. Note down your connection string (e.g., `postgresql://user:password@localhost:5432/exam_db`).
 
-## 2. Environment Variables
+## 3. Python Environment Setup
 
-Your production environment will need the following environment variables securely set:
+The backend relies on a Python script (`parse_2025.py`) using `pdfplumber` to extract data from uploaded PDF timetables. The Node server automatically looks for a virtual environment named `venv` in the root directory.
+
+1. Open a terminal in the root directory of the project.
+2. Create a virtual environment:
+   - Windows: `python -m venv venv`
+   - Linux/Mac: `python3 -m venv venv`
+3. Activate the virtual environment:
+   - Windows: `venv\Scripts\activate`
+   - Linux/Mac: `source venv/bin/activate`
+4. Install the required Python packages:
+   - `pip install -r requirements.txt`
+
+## 4. Node.js Environment Setup
+
+1. In the project root, install the Node dependencies:
+   - `npm install`
+2. Create a `.env` file in the root directory and configure your environment variables:
 
 | Variable | Description | Example |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | The connection string for your hosted PostgreSQL database. | `postgresql://user:password@host:port/dbname` |
+| `DATABASE_URL` | The connection string for your PostgreSQL database. | `postgresql://user:password@localhost:5432/exam_db` |
 | `JWT_SECRET` | A strong, random string used for signing JSON Web Tokens. | `your_very_long_secure_random_string` |
-| `PORT` | The port the server runs on. Most hosts (like Render/Heroku) set this automatically. | `3000` |
+| `PORT` | The port the server runs on. | `3000` |
 
-## 3. Deploying the Node.js Backend
+## 5. Directory Structure & Permissions
 
-You can easily deploy the application using services like **Render**, **Railway**, or **Heroku**.
+Ensure the backend has permissions to write to the file system.
+- The `backend/uploads/` directory must exist and be writable, as this is where uploaded PDF timetables are temporarily saved before parsing.
 
-### Example: Deploying to Render
+## 6. Running the Application
 
-1. Create an account on [Render](https://render.com/).
-2. Click **New +** and select **Web Service**.
-3. Connect your GitHub repository containing the ExamMonitor code.
-4. Fill in the following settings:
-   - **Environment:** `Node`
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start` (This runs `node backend/server.js` as defined in `package.json`)
-5. Scroll down to **Environment Variables** and add the variables listed in Section 2 (`DATABASE_URL`, `JWT_SECRET`). Note: Render will inject the `PORT` variable automatically.
-6. Click **Create Web Service**.
+Once both environments are set up and the database is running:
 
-Once the build is complete, your application will be live! Since the Node server serves the frontend files statically, you will be able to access the UI immediately by navigating to the provided URL (e.g., `https://exammonitor-app.onrender.com/login.html`).
+1. Start the Node.js server:
+   - `npm start` (or `npm run dev` for development)
+2. The server will start (default is port 3000). You can access the UI by navigating to `http://localhost:3000/login.html`.
 
-## 4. Considerations for Production
+## 7. Considerations for Production
 
 - **Security:** Ensure you change the default passwords from `fixedseed.sql` and use a strong, unique `JWT_SECRET`.
-- **Database Limits:** If you use a free tier for PostgreSQL, keep in mind that connection limits or storage limits may apply.
-- **Cron Jobs:** The Node application runs an internal cron job (`backend/services/cronJobs.js`) to send out notifications. If you use serverless deployments (like Vercel functions), background jobs might not run consistently. Using a standard Web Service (like on Render) ensures the process stays active to execute daily background tasks.
+- **Process Manager:** On a production machine, use a process manager like **PM2** (`npm install -g pm2` then `pm2 start backend/server.js`) to ensure the Node app restarts automatically if it crashes or the server reboots.
+- **Python Execution:** The system uses `child_process.execFile` to execute the local Python script. For deployments on platforms like Render or Railway, ensure both Node and Python are installed in the deployment environment. Serverless environments (like Vercel functions) are not recommended due to these system dependencies.
